@@ -2062,28 +2062,31 @@ function getSuitesReport(tr, runIndex, options) {
     const sections = [];
     const suites = options.listSuites === 'failed' ? tr.failedSuites : tr.suites;
     if (options.listSuites !== 'none') {
-        const trSlug = makeRunSlug(runIndex, options);
-        const nameLink = `<a id="${trSlug.id}" href="${options.baseUrl + trSlug.link}">${tr.path}</a>`;
-        const icon = getResultIcon(tr.result);
-        sections.push(`## ${icon}\xa0${nameLink}`);
-        const time = (0, markdown_utils_1.formatTime)(tr.time);
-        const headingLine2 = tr.tests > 0
-            ? `**${tr.tests}** tests were completed in **${time}** with **${tr.passed}** passed, **${tr.failed}** failed and **${tr.skipped}** skipped.`
-            : 'No tests found';
-        sections.push(headingLine2);
-        if (suites.length > 0) {
-            const suitesTable = (0, markdown_utils_1.table)(['Test suite', 'Passed', 'Failed', 'Skipped', 'Time'], [markdown_utils_1.Align.Left, markdown_utils_1.Align.Right, markdown_utils_1.Align.Right, markdown_utils_1.Align.Right, markdown_utils_1.Align.Right], ...suites.map((s, suiteIndex) => {
-                const tsTime = (0, markdown_utils_1.formatTime)(s.time);
-                const tsName = s.name;
-                const skipLink = options.listTests === 'none' || (options.listTests === 'failed' && s.result !== 'failed');
-                const tsAddr = options.baseUrl + makeSuiteSlug(runIndex, suiteIndex, options).link;
-                const tsNameLink = skipLink ? tsName : (0, markdown_utils_1.link)(tsName, tsAddr);
-                const passed = s.passed > 0 ? `${s.passed} ${markdown_utils_1.Icon.success}` : '';
-                const failed = s.failed > 0 ? `${s.failed} ${markdown_utils_1.Icon.fail}` : '';
-                const skipped = s.skipped > 0 ? `${s.skipped} ${markdown_utils_1.Icon.skip}` : '';
-                return [tsNameLink, passed, failed, skipped, tsTime];
-            }));
-            sections.push(suitesTable);
+        // If listSuites is 'failed' and the test run result is 'success', skip printing the suite
+        if (!(options.listSuites === 'failed' && tr.result === 'success')) {
+            const trSlug = makeRunSlug(runIndex, options);
+            const nameLink = `<a id="${trSlug.id}" href="${options.baseUrl + trSlug.link}">${tr.path}</a>`;
+            const icon = getResultIcon(tr.result);
+            sections.push(`## ${icon}\xa0${nameLink}`);
+            const time = (0, markdown_utils_1.formatTime)(tr.time);
+            const headingLine2 = tr.tests > 0
+                ? `**${tr.tests}** tests were completed in **${time}** with **${tr.passed}** passed, **${tr.failed}** failed and **${tr.skipped}** skipped.`
+                : 'No tests found';
+            sections.push(headingLine2);
+            if (suites.length > 0) {
+                const suitesTable = (0, markdown_utils_1.table)(['Test suite', 'Passed', 'Failed', 'Skipped', 'Time'], [markdown_utils_1.Align.Left, markdown_utils_1.Align.Right, markdown_utils_1.Align.Right, markdown_utils_1.Align.Right, markdown_utils_1.Align.Right], ...suites.map((s, suiteIndex) => {
+                    const tsTime = (0, markdown_utils_1.formatTime)(s.time);
+                    const tsName = s.name;
+                    const skipLink = options.listTests === 'none' || (options.listTests === 'failed' && s.result !== 'failed');
+                    const tsAddr = options.baseUrl + makeSuiteSlug(runIndex, suiteIndex, options).link;
+                    const tsNameLink = skipLink ? tsName : (0, markdown_utils_1.link)(tsName, tsAddr);
+                    const passed = s.passed > 0 ? `${s.passed} ${markdown_utils_1.Icon.success}` : '';
+                    const failed = s.failed > 0 ? `${s.failed} ${markdown_utils_1.Icon.fail}` : '';
+                    const skipped = s.skipped > 0 ? `${s.skipped} ${markdown_utils_1.Icon.skip}` : '';
+                    return [tsNameLink, passed, failed, skipped, tsTime];
+                }));
+                sections.push(suitesTable);
+            }
         }
     }
     if (options.listTests !== 'none') {
@@ -2110,21 +2113,16 @@ function getTestsReport(ts, runIndex, suiteIndex, options) {
     sections.push(`### ${icon}\xa0${tsNameLink}`);
     sections.push('```');
     for (const grp of groups) {
-        if (grp.name) {
-            sections.push(grp.name);
-        }
-        const space = grp.name ? '  ' : '';
         for (const tc of grp.tests) {
             if (options.listTests === 'failed' && tc.result !== 'failed') {
                 continue;
             }
             const result = getResultIcon(tc.result);
-            sections.push(`${space}${result} ${tc.name}`);
+            sections.push(`${result} ${tc.name}`);
             if (tc.error) {
-                const lines = (tc.error.message ?? (0, parse_utils_1.getFirstNonEmptyLine)(tc.error.details)?.trim())
-                    ?.split(/\r?\n/g)
-                    .map(l => '\t' + l);
-                if (lines) {
+                const message = tc.error.message ?? (0, parse_utils_1.getFirstNonEmptyLine)(tc.error.details)?.trim();
+                if (message) {
+                    const lines = message.split(/\r?\n/g).map(l => '\t' + l);
                     sections.push(...lines);
                 }
             }
@@ -3264,8 +3262,8 @@ class OidcClient {
             const res = yield httpclient
                 .getJson(id_token_url)
                 .catch(error => {
-                throw new Error(`Failed to get ID Token. \n 
-        Error Code : ${error.statusCode}\n 
+                throw new Error(`Failed to get ID Token. \n
+        Error Code : ${error.statusCode}\n
         Error Message: ${error.message}`);
             });
             const id_token = (_a = res.result) === null || _a === void 0 ? void 0 : _a.value;
@@ -21781,7 +21779,7 @@ const understoodStatuses = new Set([
 const errorStatusCodes = new Set([
     500,
     502,
-    503, 
+    503,
     504,
 ]);
 
@@ -24234,7 +24232,7 @@ exports.parse = function (s) {
       if(/^:base64:/.test(value))
         return Buffer.from(value.substring(8), 'base64')
       else
-        return /^:/.test(value) ? value.substring(1) : value 
+        return /^:/.test(value) ? value.substring(1) : value
     }
     return value
   })
@@ -61556,7 +61554,7 @@ module.exports = parseParams
 /************************************************************************/
 /******/ 	// The module cache
 /******/ 	var __webpack_module_cache__ = {};
-/******/ 	
+/******/
 /******/ 	// The require function
 /******/ 	function __nccwpck_require__(moduleId) {
 /******/ 		// Check if module is in cache
@@ -61570,7 +61568,7 @@ module.exports = parseParams
 /******/ 			// no module.loaded needed
 /******/ 			exports: {}
 /******/ 		};
-/******/ 	
+/******/
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
@@ -61579,23 +61577,23 @@ module.exports = parseParams
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
 /******/ 		}
-/******/ 	
+/******/
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
-/******/ 	
+/******/
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
-/******/ 	
+/******/
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
-/******/ 	
+/******/
 /************************************************************************/
-/******/ 	
+/******/
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
 /******/ 	// This entry module is referenced by other modules so it can't be inlined
 /******/ 	var __webpack_exports__ = __nccwpck_require__(5915);
 /******/ 	module.exports = __webpack_exports__;
-/******/ 	
+/******/
 /******/ })()
 ;

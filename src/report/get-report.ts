@@ -196,35 +196,38 @@ function getSuitesReport(tr: TestRunResult, runIndex: number, options: ReportOpt
   const suites = options.listSuites === 'failed' ? tr.failedSuites : tr.suites
 
   if (options.listSuites !== 'none') {
-    const trSlug = makeRunSlug(runIndex, options)
-    const nameLink = `<a id="${trSlug.id}" href="${options.baseUrl + trSlug.link}">${tr.path}</a>`
-    const icon = getResultIcon(tr.result)
-    sections.push(`## ${icon}\xa0${nameLink}`)
+    // If listSuites is 'failed' and the test run result is 'success', skip printing the suite
+    if (!(options.listSuites === 'failed' && tr.result === 'success')) {
+      const trSlug = makeRunSlug(runIndex, options)
+      const nameLink = `<a id="${trSlug.id}" href="${options.baseUrl + trSlug.link}">${tr.path}</a>`
+      const icon = getResultIcon(tr.result)
+      sections.push(`## ${icon}\xa0${nameLink}`)
 
-    const time = formatTime(tr.time)
-    const headingLine2 =
-      tr.tests > 0
-        ? `**${tr.tests}** tests were completed in **${time}** with **${tr.passed}** passed, **${tr.failed}** failed and **${tr.skipped}** skipped.`
-        : 'No tests found'
-    sections.push(headingLine2)
+      const time = formatTime(tr.time)
+      const headingLine2 =
+        tr.tests > 0
+          ? `**${tr.tests}** tests were completed in **${time}** with **${tr.passed}** passed, **${tr.failed}** failed and **${tr.skipped}** skipped.`
+          : 'No tests found'
+      sections.push(headingLine2)
 
-    if (suites.length > 0) {
-      const suitesTable = table(
-        ['Test suite', 'Passed', 'Failed', 'Skipped', 'Time'],
-        [Align.Left, Align.Right, Align.Right, Align.Right, Align.Right],
-        ...suites.map((s, suiteIndex) => {
-          const tsTime = formatTime(s.time)
-          const tsName = s.name
-          const skipLink = options.listTests === 'none' || (options.listTests === 'failed' && s.result !== 'failed')
-          const tsAddr = options.baseUrl + makeSuiteSlug(runIndex, suiteIndex, options).link
-          const tsNameLink = skipLink ? tsName : link(tsName, tsAddr)
-          const passed = s.passed > 0 ? `${s.passed} ${Icon.success}` : ''
-          const failed = s.failed > 0 ? `${s.failed} ${Icon.fail}` : ''
-          const skipped = s.skipped > 0 ? `${s.skipped} ${Icon.skip}` : ''
-          return [tsNameLink, passed, failed, skipped, tsTime]
-        })
-      )
-      sections.push(suitesTable)
+      if (suites.length > 0) {
+        const suitesTable = table(
+          ['Test suite', 'Passed', 'Failed', 'Skipped', 'Time'],
+          [Align.Left, Align.Right, Align.Right, Align.Right, Align.Right],
+          ...suites.map((s, suiteIndex) => {
+            const tsTime = formatTime(s.time)
+            const tsName = s.name
+            const skipLink = options.listTests === 'none' || (options.listTests === 'failed' && s.result !== 'failed')
+            const tsAddr = options.baseUrl + makeSuiteSlug(runIndex, suiteIndex, options).link
+            const tsNameLink = skipLink ? tsName : link(tsName, tsAddr)
+            const passed = s.passed > 0 ? `${s.passed} ${Icon.success}` : ''
+            const failed = s.failed > 0 ? `${s.failed} ${Icon.fail}` : ''
+            const skipped = s.skipped > 0 ? `${s.skipped} ${Icon.skip}` : ''
+            return [tsNameLink, passed, failed, skipped, tsTime]
+          })
+        )
+        sections.push(suitesTable)
+      }
     }
   }
 
@@ -258,21 +261,16 @@ function getTestsReport(ts: TestSuiteResult, runIndex: number, suiteIndex: numbe
 
   sections.push('```')
   for (const grp of groups) {
-    if (grp.name) {
-      sections.push(grp.name)
-    }
-    const space = grp.name ? '  ' : ''
     for (const tc of grp.tests) {
       if (options.listTests === 'failed' && tc.result !== 'failed') {
         continue
       }
       const result = getResultIcon(tc.result)
-      sections.push(`${space}${result} ${tc.name}`)
+      sections.push(`${result} ${tc.name}`)
       if (tc.error) {
-        const lines = (tc.error.message ?? getFirstNonEmptyLine(tc.error.details)?.trim())
-          ?.split(/\r?\n/g)
-          .map(l => '\t' + l)
-        if (lines) {
+        const message = tc.error.message ?? getFirstNonEmptyLine(tc.error.details)?.trim();
+        if (message) {
+            const lines = message.split(/\r?\n/g).map(l => '\t' + l);
           sections.push(...lines)
         }
       }
